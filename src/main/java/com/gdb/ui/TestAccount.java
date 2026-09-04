@@ -1,7 +1,5 @@
 package main.java.com.gdb.ui;
-
 import main.java.com.gdb.model.Account;
-
 import java.util.InputMismatchException;
 import java.util.Scanner;
 import java.util.ArrayList;
@@ -9,7 +7,7 @@ import java.util.HashMap;
 
 public class TestAccount {
     static ArrayList<Account> accounts = new ArrayList<>();
-    static HashMap<Integer, Integer> accountsIndex = new HashMap<>();
+    static HashMap<Integer, Integer> accountsIndex = new HashMap<>(); //accountNumber , its index in the arraylist
     static int getSafeInt(Scanner sc , String prompt){
         int val = 0;
         while(true){
@@ -41,13 +39,13 @@ public class TestAccount {
     static int askAndCheckAccNum(Scanner sc){
         int accNum;
         do{
-            accNum = getSafeInt(sc,"Enter You main.java.com.gdb.model.Account Number: ");
+            accNum = getSafeInt(sc,"Enter Your Account Number: ");
         }while(accNum < 1000);
         if(accountsIndex.containsKey(accNum)){
             return accountsIndex.get(accNum);
         }
         else {
-            System.out.println("main.java.com.gdb.model.Account Number does not exits.");
+            System.out.println("Account Number does not exits.");
             return -1;
         }
     }
@@ -58,6 +56,17 @@ public class TestAccount {
         }
         return true;
     }
+    static String checkPin(Account obj){
+        String resultPin ="Yes";
+        if(!(obj.hasPin())){
+            resultPin = "No";
+        }
+        return resultPin;
+    }
+    static int askPin(Scanner sc){
+        System.out.println("Enter PIN: ");
+        return sc.nextInt();
+    }
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         System.out.println("==============================================================");
@@ -67,11 +76,16 @@ public class TestAccount {
         String ans = "y";
         int accnum,index;
         while (ans.equals("y")) {
-            System.out.println("1. Create main.java.com.gdb.model.Account.");
+            System.out.println("\t\t\t\t\tMENU");
+            System.out.println("1. Create Account.");
             System.out.println("2. Deposit Money.");
             System.out.println("3. Withdraw Money.");
             System.out.println("4. Check Balance.");
-            System.out.println("5. Display All Accounts");
+            System.out.println("5. Close Account.");
+            System.out.println("6. Reopen Account.");
+            System.out.println("7. View Account.");
+            System.out.println("8. Set PIN.");
+            System.out.println("9. Display All Accounts");
             int choice = getSafeInt(sc,"Enter your choice: ");
             if (choice == 1) {
                 String name;
@@ -83,65 +97,126 @@ public class TestAccount {
                 int age = getSafeInt(sc,"Enter age: ");
                 if(!(age>=18)){
                     System.out.println("Underage.");
-                    System.out.println("main.java.com.gdb.model.Account Creation Failed.");
-                    continue;
+                    System.out.println("Default age set to 18.");
+                    age = 18;
                 }
-                System.out.println("Enter main.java.com.gdb.model.Account Type: ");
+                System.out.println("Enter Account Type: ");
                 String acctype = sc.next();
                 if (!acctype.equals("Savings") && !acctype.equals("Current")) {
                     System.out.println("Invalid account type. Use 'Savings' or 'Current'.");
-                    continue;
+                    System.out.println("Default account type set to Savings.");
+                    acctype="Savings.";
                 }
                 double deposit = getSafeDouble(sc,"Initial deposit amount: ");
                 i++; //for account number generation
                 Account newAccount = new Account(1000 + i, name, age, deposit, acctype);
+                if(deposit<newAccount.minimumBalance) System.out.println("Balance auto-corrected to minimum: ₹500.0");
                 accounts.add(newAccount);
                 accountsIndex.put(1000+i, i-1);//accountNumber , its index in the arraylist
                 Account obj1 = accounts.get(i-1);
-                System.out.printf("main.java.com.gdb.model.Account NO: %d | %s ( %d yrs ) | %s | %.2f | %s",obj1.getAccountNumber(),obj1.getName(),obj1.getAge(),obj1.getAccountType(),obj1.getBalance(),obj1.getStatus());
+                System.out.printf("Account NO: %d | %s ( %d yrs ) | %s | %.2f | %s | PIN: %s",obj1.getAccountNumber(),obj1.getName(),obj1.getAge(),obj1.getAccountType(),obj1.getBalance(),obj1.getStatus(),checkPin(obj1));
                 System.out.println();
             }
-            else if(choice==2){
+            else if(choice==2) {
                 int index_1 = askAndCheckAccNum(sc);
-                if(index_1==-1){
-                    System.out.println("main.java.com.gdb.model.Account Not Found");
+                if (index_1 == -1) {
+                    System.out.println("Account Not Found");
                     continue;
                 }
-                double amt = getSafeDouble(sc,"Enter the amount you want to deposit: ");
-                if(accounts.get(index_1).deposit(amt)){
+                double amt = getSafeDouble(sc, "Enter the amount you want to deposit: ");
+                boolean success = accounts.get(index_1).deposit(amt);
+                if (success) {
                     System.out.println("Deposit Successful.");
-                    System.out.println("balance: "+accounts.get(index_1).getBalance());
-                }
-                else{
-                    System.out.printf("Depositing %.2f: FAILED(Invalid amount)\n",amt);
+                    System.out.println("balance: " + accounts.get(index_1).getBalance());
+                } else if (accounts.get(index_1).getStatus().equals("Inactive")) {
+                    System.out.printf("Depositing %.2f to closed account: FAILED(Account Inactive)%n", amt);
+                } else {
+                    System.out.printf("Depositing %.2f: FAILED(Invalid amount)%n", amt);
                 }
             }
             else if(choice==3){
                 int index_1 = askAndCheckAccNum(sc);
                 if (index_1 == -1) {
-                    System.out.println("main.java.com.gdb.model.Account Not Found");
+                    System.out.println("Account Not Found");
                     continue;
                 }
                 double amt = getSafeDouble(sc,"Enter Amount to Withdraw: ");
+                if (!(accounts.get(index_1).hasPin())) {
+                    System.out.println("PIN not set. Set PIN to withdraw amount.");
+                    continue;
+                }
+                int pin = askPin(sc);
+                if(!(accounts.get(index_1).verifyPin(pin))){ //wrong PIN enter check
+                    System.out.printf("Withdrawing %.2f: with incorrect PIN(%d): FAILED(Incorrect PIN)%n",amt,pin);
+                    continue;
+                }
                 if(accounts.get(index_1).withdraw(amt)){
                     System.out.printf("Withdrawing %.2f: SUCCESS%nNew balance: %.2f%n",amt,accounts.get(index_1).getBalance());
                 }
                 else {
-                    System.out.printf("Withdrawing %.2f: FAILED (Insufficient balance)%nCurrent balance: %.2f%n",amt,accounts.get(index_1).getBalance());
+                    System.out.printf("Withdrawing %.2f (would leave %.2f) FAILED (Minimum balance violation)%nCurrent balance: %.2f%n",amt,accounts.get(index_1).getBalance()-amt,accounts.get(index_1).getBalance());
+                    continue;
                 }
+                System.out.printf("Withdrawing %.2f: with correct PIN(%d): SUCCESS%n",amt,pin);
 
             }
             else if(choice ==4 ) {
                 int index_1 = askAndCheckAccNum(sc);
                 if (index_1 == -1) {
-                    System.out.println("main.java.com.gdb.model.Account Not Found");
+                    System.out.println("Account Not Found");
                     continue;
                 }
                 System.out.println("Balance: " + accounts.get(index_1).getBalance());
             }
-            else if(choice ==5){
+            else if(choice==5){
+                int index_1 = askAndCheckAccNum(sc);
+                if (index_1 == -1) {
+                    System.out.println("Account Not Found");
+                    continue;
+                }
+                if(accounts.get(index_1).closeAccount()){
+                    System.out.println("Closing account: SUCCESS");
+                }
+                else{
+                    System.out.println("Account is already closed.");
+                }
+            }
+            else if(choice==6){
+                int index_1 = askAndCheckAccNum(sc);
+                if (index_1 == -1) {
+                    System.out.println("Account Not Found");
+                    continue;
+                }
+                if(accounts.get(index_1).reopenAccount()){
+                    System.out.println("Reopening account: SUCCESS");
+                }
+            }
+            else if(choice == 7){
+                int index_1 = askAndCheckAccNum(sc);
+                if (index_1 == -1) {
+                    System.out.println("Account Not Found");
+                    continue;
+                }
+                Account obj = accounts.get(index_1);
+                System.out.printf("Account# %d | %s (%d yrs) | %s | %.2f | %s | PIN: %s%n", obj.getAccountNumber(), obj.getName(), obj.getAge(), obj.getAccountType(), obj.getBalance(), obj.getStatus(), checkPin(obj));
+            }
+            else if(choice==8){
+                int index_1 = askAndCheckAccNum(sc);
+                if (index_1 == -1) {
+                    continue;
+                }
+                if(!(accounts.get(index_1).hasPin())) {
+                    System.out.println("Enter PIN: ");
+                    String pin = sc.next();
+                    if(accounts.get(index_1).setPIN(pin)) System.out.println("PIN set successfully.");
+                }
+                else {
+                    System.out.println("This account already has a PIN");
+                }
+            }
+            else if(choice ==9){
                 for (Account obj : accounts) {
-                    System.out.printf("main.java.com.gdb.model.Account# %d | %s (%d yrs) | %s | %.2f | %s", obj.getAccountNumber(), obj.getName(), obj.getAge(), obj.getAccountType(), obj.getBalance(), obj.getStatus());
+                    System.out.printf("Account# %d | %s (%d yrs) | %s | %.2f | %s | PIN: %s", obj.getAccountNumber(), obj.getName(), obj.getAge(), obj.getAccountType(), obj.getBalance(), obj.getStatus(), checkPin(obj));
                     System.out.println();
                 }
             }
