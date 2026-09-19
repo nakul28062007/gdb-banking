@@ -1,13 +1,13 @@
 package main.java.com.gdb.ui;
-import main.java.com.gdb.model.Account;
+import main.java.com.gdb.model.*;
 import java.util.InputMismatchException;
 import java.util.Scanner;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class TestAccount {
-    static ArrayList<Account> accounts = new ArrayList<>();
-    static HashMap<Integer, Integer> accountsIndex = new HashMap<>(); //accountNumber , its index in the arraylist
+    static Map<Integer, Account> accounts = new LinkedHashMap<>(); //account Number , Account object
+    static int nextAccountNumber = 1001;
     static int getSafeInt(Scanner sc , String prompt){
         int val = 0;
         while(true){
@@ -36,18 +36,13 @@ public class TestAccount {
             }
         }
     }
-    static int askAndCheckAccNum(Scanner sc){
-        int accNum;
-        do{
-            accNum = getSafeInt(sc,"Enter Your Account Number: ");
-        }while(accNum < 1000);
-        if(accountsIndex.containsKey(accNum)){
-            return accountsIndex.get(accNum);
+    static Account askAndCheckAccNum(Scanner sc){
+       int accNum = getSafeInt(sc, "Enter Your Account Number: ");
+       Account acc = accounts.get(accNum);
+        if(acc==null){
+            System.out.println("Account not found.");
         }
-        else {
-            System.out.println("Account Number does not exits.");
-            return -1;
-        }
+       return acc;
     }
     static boolean validateName(String name){
         if (name.isBlank()) {
@@ -56,25 +51,22 @@ public class TestAccount {
         }
         return true;
     }
-    static String checkPin(Account obj){
+    static String checkPin(Account acc){
         String resultPin ="Yes";
-        if(!(obj.hasPin())){
+        if(!(acc.hasPin())){
             resultPin = "No";
         }
         return resultPin;
     }
     static int askPin(Scanner sc){
-        System.out.println("Enter PIN: ");
-        return sc.nextInt();
+        return getSafeInt(sc, "Enter PIN: ");
     }
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         System.out.println("==============================================================");
-        System.out.println("\t\t\t\t\tGLOBAL DIGITAL BANK - ACCOUNT TEST");
+        System.out.println("\t\t\t\t\tACCOUNT TEST WITH EXCEPTIONS");
         System.out.println("===============================================================");
-        int i = 0; //iteraable variable for account Number
         String ans = "y";
-        int accnum,index;
         while (ans.equals("y")) {
             System.out.println("\t\t\t\t\tMENU");
             System.out.println("1. Create Account.");
@@ -85,7 +77,8 @@ public class TestAccount {
             System.out.println("6. Reopen Account.");
             System.out.println("7. View Account.");
             System.out.println("8. Set PIN.");
-            System.out.println("9. Display All Accounts");
+            System.out.println("9. Change PIN");
+            System.out.println("10. Display All Accounts");
             int choice = getSafeInt(sc,"Enter your choice: ");
             if (choice == 1) {
                 String name;
@@ -95,129 +88,113 @@ public class TestAccount {
 
                 }while(!(validateName(name)));
                 int age = getSafeInt(sc,"Enter age: ");
-                if(!(age>=18)){
-                    System.out.println("Underage.");
-                    System.out.println("Default age set to 18.");
-                    age = 18;
-                }
+
                 System.out.println("Enter Account Type: ");
                 String acctype = sc.next();
-                if (!acctype.equals("Savings") && !acctype.equals("Current")) {
-                    System.out.println("Invalid account type. Use 'Savings' or 'Current'.");
-                    System.out.println("Default account type set to Savings.");
-                    acctype="Savings.";
-                }
+
                 double deposit = getSafeDouble(sc,"Initial deposit amount: ");
-                i++; //for account number generation
-                Account newAccount = new Account(1000 + i, name, age, deposit, acctype);
-                if(deposit<newAccount.minimumBalance) System.out.println("Balance auto-corrected to minimum: ₹500.0");
-                accounts.add(newAccount);
-                accountsIndex.put(1000+i, i-1);//accountNumber , its index in the arraylist
-                Account obj1 = accounts.get(i-1);
-                System.out.printf("Account NO: %d | %s ( %d yrs ) | %s | %.2f | %s | PIN: %s",obj1.getAccountNumber(),obj1.getName(),obj1.getAge(),obj1.getAccountType(),obj1.getBalance(),obj1.getStatus(),checkPin(obj1));
-                System.out.println();
+                try {
+                    Account newAccount = new Account(nextAccountNumber, name, age, deposit, acctype);
+                    accounts.put(newAccount.getAccountNumber(),newAccount);
+                    nextAccountNumber++;
+                    System.out.printf("Account NO: %d | %s ( %d yrs ) | %s | %s %.2f | %s | PIN: %s",newAccount.getAccountNumber(),newAccount.getName(),newAccount.getAge(),newAccount.getAccountType(),newAccount.getCurrency(),newAccount.getBalance(),newAccount.getStatus(),checkPin(newAccount));
+                    System.out.println();
+                }catch (IllegalArgumentException e){
+                    System.out.println("Account creation Failed: "+ e.getMessage());
+                }
             }
             else if(choice==2) {
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    System.out.println("Account Not Found");
-                    continue;
-                }
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
                 double amt = getSafeDouble(sc, "Enter the amount you want to deposit: ");
-                boolean success = accounts.get(index_1).deposit(amt);
-                if (success) {
+                try{
+                    acc.deposit(amt);
                     System.out.println("Deposit Successful.");
-                    System.out.println("balance: " + accounts.get(index_1).getBalance());
-                } else if (accounts.get(index_1).getStatus().equals("Inactive")) {
-                    System.out.printf("Depositing %.2f to closed account: FAILED(Account Inactive)%n", amt);
-                } else {
-                    System.out.printf("Depositing %.2f: FAILED(Invalid amount)%n", amt);
+                    System.out.println("Balance: " + acc.getBalance());
+                }catch (InvalidAmountException | InactiveAccountException e){
+                    System.out.println("Deposition Failed: "+e.getMessage());
                 }
             }
             else if(choice==3){
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    System.out.println("Account Not Found");
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+                if(!acc.hasPin()) {
+                    System.out.println("PIN not set. Set a PIN (option 8) before withdrawing.");
                     continue;
                 }
                 double amt = getSafeDouble(sc,"Enter Amount to Withdraw: ");
-                if (!(accounts.get(index_1).hasPin())) {
-                    System.out.println("PIN not set. Set PIN to withdraw amount.");
-                    continue;
-                }
                 int pin = askPin(sc);
-                if(!(accounts.get(index_1).verifyPin(pin))){ //wrong PIN enter check
-                    System.out.printf("Withdrawing %.2f: with incorrect PIN(%d): FAILED(Incorrect PIN)%n",amt,pin);
-                    continue;
+                try{
+                    acc.withdraw(amt,pin);
+                    System.out.println("Withdrawal Successful");
+                    System.out.println("Balance: "+acc.getBalance());
+                }catch (InvalidAmountException | InsufficientBalanceException | MinimumBalanceViolationException | InactiveAccountException | InvalidPinException e){
+                    System.out.println("ERRORL: "+e.getMessage());
                 }
-                if(accounts.get(index_1).withdraw(amt)){
-                    System.out.printf("Withdrawing %.2f: SUCCESS%nNew balance: %.2f%n",amt,accounts.get(index_1).getBalance());
-                }
-                else {
-                    System.out.printf("Withdrawing %.2f (would leave %.2f) FAILED (Minimum balance violation)%nCurrent balance: %.2f%n",amt,accounts.get(index_1).getBalance()-amt,accounts.get(index_1).getBalance());
-                    continue;
-                }
-                System.out.printf("Withdrawing %.2f: with correct PIN(%d): SUCCESS%n",amt,pin);
-
             }
             else if(choice ==4 ) {
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    System.out.println("Account Not Found");
-                    continue;
-                }
-                System.out.println("Balance: " + accounts.get(index_1).getBalance());
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+                System.out.println("Balance: " + acc.getBalance());
             }
             else if(choice==5){
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    System.out.println("Account Not Found");
-                    continue;
-                }
-                if(accounts.get(index_1).closeAccount()){
-                    System.out.println("Closing account: SUCCESS");
-                }
-                else{
-                    System.out.println("Account is already closed.");
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+
+                try{
+                    acc.closeAccount();
+                    System.out.println("Account closed successfully.");
+                }catch (IllegalStateException e){
+                    System.out.println("Account closure Failed: "+ e.getMessage());
                 }
             }
             else if(choice==6){
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    System.out.println("Account Not Found");
-                    continue;
-                }
-                if(accounts.get(index_1).reopenAccount()){
-                    System.out.println("Reopening account: SUCCESS");
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+
+                try{
+                    acc.reopenAccount();
+                    System.out.println("Account reopened successfully");
+                }catch (IllegalStateException e){
+                    System.out.println("Account Cam't be reopened: "+ e.getMessage());
                 }
             }
             else if(choice == 7){
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    System.out.println("Account Not Found");
-                    continue;
-                }
-                Account obj = accounts.get(index_1);
-                System.out.printf("Account# %d | %s (%d yrs) | %s | %.2f | %s | PIN: %s%n", obj.getAccountNumber(), obj.getName(), obj.getAge(), obj.getAccountType(), obj.getBalance(), obj.getStatus(), checkPin(obj));
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+
+                System.out.printf("Account# %d | %s (%d yrs) | %s | %.2f | %s | PIN: %s%n", acc.getAccountNumber(), acc.getName(), acc.getAge(), acc.getAccountType(), acc.getBalance(), acc.getStatus(), checkPin(acc));
             }
             else if(choice==8){
-                int index_1 = askAndCheckAccNum(sc);
-                if (index_1 == -1) {
-                    continue;
-                }
-                if(!(accounts.get(index_1).hasPin())) {
-                    System.out.println("Enter PIN: ");
-                    String pin = sc.next();
-                    if(accounts.get(index_1).setPIN(pin)) System.out.println("PIN set successfully.");
-                }
-                else {
-                    System.out.println("This account already has a PIN");
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+                int pin = askPin(sc);
+                try{
+                    acc.setPin(pin);
+                    System.out.println("PIN set successfully.");
+                }catch (IllegalArgumentException | IllegalStateException e){
+                    System.out.println("PIN can't be set."+ "ERROR: "+ e.getMessage());
                 }
             }
-            else if(choice ==9){
-                for (Account obj : accounts) {
-                    System.out.printf("Account# %d | %s (%d yrs) | %s | %.2f | %s | PIN: %s", obj.getAccountNumber(), obj.getName(), obj.getAge(), obj.getAccountType(), obj.getBalance(), obj.getStatus(), checkPin(obj));
-                    System.out.println();
+            else if(choice==9){
+                Account acc = askAndCheckAccNum(sc);
+                if (acc == null) continue;
+                int pin = askPin(sc);
+                try{
+                    acc.changePin(pin);
+                    System.out.println("PIN changed successfully");
+                }catch (IllegalArgumentException | IllegalStateException e){
+                    System.out.println("PIN cant't be changed. "+"ERROR: "+ e.getMessage());
+                }
+            }
+            else if(choice ==10){
+                if(accounts.isEmpty()){
+                    System.out.println("No accounts to display.");
+                }else {
+                    for (Account acc : accounts.values()) {
+                        System.out.printf("Account# %d | %s (%d yrs) | %s | %.2f | %s | PIN: %s", acc.getAccountNumber(), acc.getName(), acc.getAge(), acc.getAccountType(), acc.getBalance(), acc.getStatus(), checkPin(acc));
+                        System.out.println();
+                    }
                 }
             }
             else {
