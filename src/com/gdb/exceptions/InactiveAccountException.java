@@ -1,4 +1,4 @@
-package main.java.com.gdb.model;
+package main.java.com.gdb.exceptions;
 
 public class InactiveAccountException extends AccountException{
     public InactiveAccountException(String message){

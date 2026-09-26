@@ -1,4 +1,4 @@
-package main.java.com.gdb.model;
+package main.java.com.gdb.exceptions;
 
 public class AccountException extends Exception {
     public AccountException(String message){

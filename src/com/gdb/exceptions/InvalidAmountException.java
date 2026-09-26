@@ -1,4 +1,4 @@
-package main.java.com.gdb.model;
+package main.java.com.gdb.exceptions;
 
 public class InvalidAmountException extends AccountException{
     public InvalidAmountException(String message){
