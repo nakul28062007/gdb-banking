@@ -1,9 +1,7 @@
 package main.java.com.gdb.model;
 
-public class Account {
+public abstract class Account {
     //======Constants========
-    private static final double MIN_BALANCE_SAVINGS = 500.0;
-    private static final double MIN_BALANCE_CURRENT = 1000.0;
     private static final int MIN_AGE = 18;
     private static final int MIN_PIN = 1000;
     private static final int MAX_PIN = 9999;
@@ -14,26 +12,30 @@ public class Account {
     private String name;
     private int age;
     private double balance;
-    private final String accountType;
     private  String status;
     private Integer PIN=null;
 
+    //=====Abstract Methods=====
+    public abstract double getMinimumBalance();
+    public abstract String getAccountType();
 
     //=====Constructor=====
-    public Account(int accountNumber, String name, int age, double deposit, String accountType)
+    public Account(int accountNumber, String name, int age, double initialBalance)
         throws IllegalArgumentException {
-        if (age < MIN_AGE) throw new IllegalArgumentException("Age must be 18 or older.");
-        if (!accountType.equalsIgnoreCase("savings") && !accountType.equalsIgnoreCase("current"))
-            throw new IllegalArgumentException("Account type must be Savings or Current.");
+        if (age < MIN_AGE) throw new IllegalArgumentException("Customer must be at least " + MIN_AGE + " years old. Provided: " + age);
+        double minBalance = getMinimumBalance();
+        if (initialBalance < minBalance) {
+            throw new IllegalArgumentException(
+                    getAccountType() + " account requires minimum balance of ₹" + minBalance +
+                            ". Provided: "+CURRENCY + initialBalance
+            );
+        }
 
+        // Initialize fields
         this.accountNumber = accountNumber;
-        this.accountType = accountType;
-        this.age = age;
         this.name = name;
-        if (!Double.isFinite(deposit) || deposit < getMinimumBalance())
-            throw new IllegalArgumentException("Initial deposit below minimum: "+CURRENCY+getMinimumBalance());
-
-        this.balance = deposit;
+        this.age = age;
+        this.balance = initialBalance;
         this.status = "Active";
         this.PIN = null;
     }
@@ -83,15 +85,18 @@ public class Account {
         }
         this.PIN=pin;
     }
-    public void changePin(int pin)
-            throws IllegalArgumentException, IllegalStateException{
-        if (pin < MIN_PIN || pin > MAX_PIN) {
+    public void changePin(int oldPin, int newPin)
+            throws IllegalArgumentException, IllegalStateException, InvalidPinException {
+        if (!hasPin()) {
+            throw new IllegalStateException("No PIN set. Use setPin() first.");
+        }
+        if (!verifyPin(oldPin)) {
+            throw new InvalidPinException("EXCEPTION: Incorrect PIN.");
+        }
+        if (newPin < MIN_PIN || newPin > MAX_PIN) {
             throw new IllegalArgumentException("PIN must be a 4-digit number between " + MIN_PIN + " and " + MAX_PIN + ".");
         }
-        if (hasPin()) {
-            throw new IllegalStateException("PIN is already set.");
-        }
-        this.PIN=pin;
+        this.PIN = newPin;
     }
     public boolean verifyPin(int pin){
         return this.PIN != null && this.PIN == pin;
@@ -101,12 +106,19 @@ public class Account {
     }
 
     //======Helper Methods========
-    private double getMinimumBalance() {
-        return this.accountType.equalsIgnoreCase("savings") ? MIN_BALANCE_SAVINGS : MIN_BALANCE_CURRENT;
-    }
-    private void validateActive()
+    protected void validateActive()
         throws InactiveAccountException{
         if(!this.status.equalsIgnoreCase("active")) throw new InactiveAccountException("Account is Inactive.Please reopen the account or contact support.");
+    }
+    protected void validatePin(int pin) throws InvalidPinException{
+        if(!hasPin()) throw new InvalidPinException("Invalid PIN error: PIN not set.");
+        if(!verifyPin(pin)) throw new InvalidPinException("EXCEPTION: Incorrect PIN.");
+    }
+    protected void validateAmount(double amount) throws InvalidAmountException{
+        if(!isValidAmount(amount)) throw new InvalidAmountException("Invalid Amount. Amount must be greater than 0.");
+    }
+    protected void setBalance(double newBalance) {
+        this.balance = newBalance;
     }
     public double getBalance(){
         return balance;
@@ -119,9 +131,6 @@ public class Account {
     }
     public int getAge(){
         return age;
-    }
-    public String getAccountType(){
-        return accountType;
     }
     public String getStatus(){
         return status;
